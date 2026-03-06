@@ -74,11 +74,17 @@ dotnet build -c Release
 **Linux (x64)**
 
 ```bash
+# Build and install to ~/.local/bin in one step
+make install
+```
+
+Or manually:
+
+```bash
 dotnet publish -c Release -r linux-x64 --self-contained true \
   -p:PublishSingleFile=true -o bin/publish/linux
 
-# Optionally put it on your PATH
-sudo cp bin/publish/linux/git-cp /usr/local/bin/git-cp
+cp bin/publish/linux/git-cp ~/.local/bin/git-cp
 ```
 
 **Windows (x64)**
@@ -151,6 +157,7 @@ git-cp/
 │   └── workflows/
 │       └── release.yml    # CI: build & publish binaries on tag push
 ├── cp.csproj              # Project file (.NET 10, Spectre.Console 0.54)
+├── Makefile               # build + install to ~/.local/bin (Linux)
 ├── Program.cs             # App entry point — UI flow and cherry-pick loop
 ├── GitService.cs          # Thin wrapper around git CLI commands
 ├── install.sh             # One-liner installer for Linux

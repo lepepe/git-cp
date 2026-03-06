@@ -6,11 +6,11 @@ namespace cp;
 
 public class GitService
 {
-    private readonly string _repoPath;
+    public string RepoPath { get; }
 
     public GitService(string repoPath)
     {
-        _repoPath = repoPath;
+        RepoPath = repoPath;
     }
 
     // ── Basic checks ────────────────────────────────────────────────────────
@@ -104,6 +104,49 @@ public class GitService
 
     public GitResult StageAll() => Run("add", "-A");
 
+    // ── Editor ───────────────────────────────────────────────────────────────
+
+    public string ResolveEditor()
+    {
+        return Environment.GetEnvironmentVariable("VISUAL")
+            ?? Environment.GetEnvironmentVariable("EDITOR")
+            ?? (OperatingSystem.IsWindows() ? "notepad" : "vi");
+    }
+
+    public void OpenInEditor(string file)
+    {
+        var editor = ResolveEditor();
+
+        if (!OperatingSystem.IsWindows())
+        {
+            // Spectre.Console leaves the terminal in raw/no-echo mode after
+            // interactive prompts. Reset it to a sane state so that terminal
+            // editors (nvim, vim, nano …) can initialise properly.
+            using var stty = Process.Start(new ProcessStartInfo("stty", "sane")
+            {
+                UseShellExecute = false,
+            });
+            stty?.WaitForExit();
+        }
+
+        var psi = new ProcessStartInfo(editor)
+        {
+            WorkingDirectory = RepoPath,
+            UseShellExecute  = false,
+            // No stream redirection — the editor must own the terminal
+        };
+        psi.ArgumentList.Add(file);
+
+        using var proc = Process.Start(psi)!;
+        proc.WaitForExit();
+    }
+
+    /// <summary>Returns true for known GUI editors that need --wait to block.</summary>
+    public static bool IsGuiEditor(string editor) =>
+        editor.StartsWith("code") || editor.StartsWith("subl") ||
+        editor.StartsWith("atom") || editor.StartsWith("gedit") ||
+        editor.StartsWith("kate");
+
     // ── Remote ───────────────────────────────────────────────────────────────
 
     public GitResult Push(string remote, string branch) => Run("push", remote, branch);
@@ -123,7 +166,7 @@ public class GitService
     {
         var psi = new ProcessStartInfo("git")
         {
-            WorkingDirectory = _repoPath,
+            WorkingDirectory = RepoPath,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
