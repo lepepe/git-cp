@@ -7,6 +7,8 @@ using Spectre.Console;
 AnsiConsole.Write(new FigletText("git-cp").Color(Color.CornflowerBlue));
 AnsiConsole.MarkupLine("[grey]Interactive git cherry-pick helper[/]\n");
 
+await UpdateService.CheckAndPromptAsync();
+
 // ── Locate repo ───────────────────────────────────────────────────────────────
 
 var workDir = Directory.GetCurrentDirectory();

@@ -19,9 +19,18 @@ jobs:
           - os: ubuntu-latest
             rid: linux-x64
             artifact: git-cp
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            artifact: git-cp
           - os: windows-latest
             rid: win-x64
             artifact: git-cp.exe
+          - os: macos-13
+            rid: osx-x64
+            artifact: git-cp
+          - os: macos-latest
+            rid: osx-arm64
+            artifact: git-cp
 
     steps:
       - name: Checkout
@@ -66,7 +75,10 @@ jobs:
       - name: Rename artifacts
         run: |
           mv artifacts/linux-x64/git-cp      artifacts/git-cp-linux-x64
+          mv artifacts/linux-arm64/git-cp    artifacts/git-cp-linux-arm64
           mv artifacts/win-x64/git-cp.exe    artifacts/git-cp-win-x64.exe
+          mv artifacts/osx-x64/git-cp        artifacts/git-cp-osx-x64
+          mv artifacts/osx-arm64/git-cp      artifacts/git-cp-osx-arm64
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -74,4 +86,7 @@ jobs:
           generate_release_notes: true
           files: |
             artifacts/git-cp-linux-x64
+            artifacts/git-cp-linux-arm64
             artifacts/git-cp-win-x64.exe
+            artifacts/git-cp-osx-x64
+            artifacts/git-cp-osx-arm64
