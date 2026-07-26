@@ -7,6 +7,14 @@ using Spectre.Console;
 AnsiConsole.Write(new FigletText("git-cp").Color(Color.CornflowerBlue));
 AnsiConsole.MarkupLine("[grey]Interactive git cherry-pick helper[/]\n");
 
+// ── Update flag ───────────────────────────────────────────────────────────────
+
+if (args.Contains("--update") || args.Contains("-u"))
+    return await RunUpdateFlowAsync();
+
+UpdateService.CleanupStaleWindowsOldFile();
+var updateCheckTask = UpdateService.CheckForUpdateInBackgroundAsync(UpdateService.GetCurrentVersion());
+
 // ── Locate repo ───────────────────────────────────────────────────────────────
 
 var workDir = Directory.GetCurrentDirectory();
@@ -291,7 +299,28 @@ foreach (var commit in toApply)
     switch (resolution)
     {
         case "I fixed it manually — stage & continue":
-            git.StageAll();
+            git.StageFiles(conflicted);
+
+            var otherDirty = git.DirtyFiles().Except(conflicted).ToArray();
+            if (otherDirty.Length > 0)
+            {
+                AnsiConsole.MarkupLine(
+                    "\n[yellow]Other modified files were found in your working tree — they are [bold]not[/] part of this conflict.[/]"
+                );
+                var extraFiles = AnsiConsole.Prompt(
+                    new MultiSelectionPrompt<string>()
+                        .Title(
+                            "Select any you [cornflowerblue]also[/] want to include in this commit [grey](Space = toggle, Enter = confirm, none selected by default)[/]:"
+                        )
+                        .PageSize(15)
+                        .NotRequired()
+                        .UseConverter(Markup.Escape)
+                        .AddChoices(otherDirty)
+                );
+                if (extraFiles.Count > 0)
+                    git.StageFiles(extraFiles);
+            }
+
             var cont = git.CherryPickContinue();
             if (cont.Success)
             {
@@ -375,11 +404,92 @@ if (applied > 0 && git.RemoteExists("origin"))
     }
 }
 
+await Task.WhenAny(updateCheckTask, Task.Delay(150));
+if (updateCheckTask.IsCompletedSuccessfully && updateCheckTask.Result is { } updateInfo)
+{
+    AnsiConsole.MarkupLine(
+        $"\n[grey]A new version of git-cp is available: v{Markup.Escape(updateInfo.LatestVersion)} "
+            + $"(current: v{Markup.Escape(UpdateService.GetCurrentVersion())}). "
+            + $"Run 'git cp --update' to install it.[/]"
+    );
+}
+
 AnsiConsole.MarkupLine("[green]Done![/]");
 
 return 0;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+static async Task<int> RunUpdateFlowAsync()
+{
+    var currentVersion = UpdateService.GetCurrentVersion();
+    AnsiConsole.MarkupLine($"[grey]Current version:[/] [bold]{Markup.Escape(currentVersion)}[/]\n");
+
+    UpdateCheckOutcome outcome = null!;
+    await AnsiConsole
+        .Status()
+        .StartAsync(
+            "Checking for updates…",
+            async ctx =>
+            {
+                ctx.Spinner(Spinner.Known.Dots);
+                outcome = await UpdateService.CheckForUpdateNowAsync(currentVersion);
+            }
+        );
+
+    switch (outcome.Status)
+    {
+        case UpdateStatus.CheckFailed:
+            AnsiConsole.MarkupLine(
+                "[red]Could not check for updates.[/] GitHub may be unreachable, or no build is available for this platform."
+            );
+            return 1;
+
+        case UpdateStatus.UpToDate:
+            AnsiConsole.MarkupLine(
+                $"[green]✓[/] You're already on the latest version ([bold]v{Markup.Escape(outcome.LatestVersion ?? currentVersion)}[/])."
+            );
+            return 0;
+
+        case UpdateStatus.UpdateAvailable:
+            AnsiConsole.MarkupLine(
+                $"[cornflowerblue]A new version is available:[/] [bold]v{Markup.Escape(outcome.LatestVersion!)}[/] "
+                    + $"[grey](current: v{Markup.Escape(currentVersion)})[/]"
+            );
+
+            if (!AnsiConsole.Confirm("Update now?", defaultValue: true))
+            {
+                AnsiConsole.MarkupLine("[yellow]Update skipped.[/]");
+                return 0;
+            }
+
+            UpdateApplyResult result = null!;
+            await AnsiConsole
+                .Status()
+                .StartAsync(
+                    "Downloading…",
+                    async ctx =>
+                    {
+                        ctx.Spinner(Spinner.Known.Dots);
+                        result = await UpdateService.ApplyUpdateAsync(
+                            outcome.DownloadUrl!,
+                            outcome.AssetName!,
+                            outcome.ChecksumUrl
+                        );
+                    }
+                );
+
+            AnsiConsole.MarkupLine(
+                result.Success
+                    ? $"[green]✓[/] {Markup.Escape(result.Message)}"
+                    : $"[red]✗[/] {Markup.Escape(result.Message)}"
+            );
+            return result.Success ? 0 : 1;
+
+        default:
+            return 1;
+    }
+}
 
 static void PrintError(string title, GitResult r)
 {

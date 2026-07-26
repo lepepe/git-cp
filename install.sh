@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Installs git-cp for the current user on Linux.
+# Installs git-cp for the current user on Linux or macOS.
 #
-# Downloads the latest git-cp-linux-x64 from GitHub Releases and places it
+# Downloads the matching release binary from GitHub Releases and places it
 # in ~/.local/bin (no sudo required). Once installed:
 #   git-cp        works directly
 #   git cp        works via git's PATH lookup
@@ -12,9 +12,28 @@
 set -euo pipefail
 
 REPO="lepepe/git-cp" # <-- update before publishing
-ASSET_NAME="git-cp-linux-x64"
 INSTALL_DIR="${HOME}/.local/bin"
 BIN_PATH="${INSTALL_DIR}/git-cp"
+
+case "$(uname -s)" in
+  Linux)
+    ASSET_NAME="git-cp-linux-x64"
+    ;;
+  Darwin)
+    case "$(uname -m)" in
+      arm64)  ASSET_NAME="git-cp-osx-arm64" ;;
+      x86_64) ASSET_NAME="git-cp-osx-x64" ;;
+      *)
+        echo "Unsupported macOS architecture: $(uname -m)" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  *)
+    echo "Unsupported OS: $(uname -s). On Windows, use install.ps1 instead." >&2
+    exit 1
+    ;;
+esac
 
 echo "Fetching latest release info..."
 
