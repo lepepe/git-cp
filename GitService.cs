@@ -102,7 +102,21 @@ public class GitService
         return result.Output;
     }
 
-    public GitResult StageAll() => Run("add", "-A");
+    public GitResult StageFiles(IEnumerable<string> files) =>
+        Run(["add", "--", .. files]);
+
+    /// <summary>Paths of all modified, staged, or untracked files in the working tree.</summary>
+    public string[] DirtyFiles()
+    {
+        var result = Run("status", "--porcelain");
+        if (!result.Success || string.IsNullOrWhiteSpace(result.Output))
+            return [];
+        return result
+            .Output.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(l => l.Length > 3 ? l[3..].Trim() : "")
+            .Where(p => p.Length > 0)
+            .ToArray();
+    }
 
     // ── Editor ───────────────────────────────────────────────────────────────
 

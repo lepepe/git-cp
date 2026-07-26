@@ -291,7 +291,28 @@ foreach (var commit in toApply)
     switch (resolution)
     {
         case "I fixed it manually — stage & continue":
-            git.StageAll();
+            git.StageFiles(conflicted);
+
+            var otherDirty = git.DirtyFiles().Except(conflicted).ToArray();
+            if (otherDirty.Length > 0)
+            {
+                AnsiConsole.MarkupLine(
+                    "\n[yellow]Other modified files were found in your working tree — they are [bold]not[/] part of this conflict.[/]"
+                );
+                var extraFiles = AnsiConsole.Prompt(
+                    new MultiSelectionPrompt<string>()
+                        .Title(
+                            "Select any you [cornflowerblue]also[/] want to include in this commit [grey](Space = toggle, Enter = confirm, none selected by default)[/]:"
+                        )
+                        .PageSize(15)
+                        .NotRequired()
+                        .UseConverter(Markup.Escape)
+                        .AddChoices(otherDirty)
+                );
+                if (extraFiles.Count > 0)
+                    git.StageFiles(extraFiles);
+            }
+
             var cont = git.CherryPickContinue();
             if (cont.Success)
             {
