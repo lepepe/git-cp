@@ -20,6 +20,7 @@ Built with [Spectre.Console](https://spectreconsole.net/) on .NET 10.
   - Lets you fix conflicts in your editor, then stage & continue
   - Or skip the commit, or abort the entire session
 - **Summary** — applied / skipped count at the end
+- **Self-update** — checks GitHub Releases for a newer version and lets you update in place with `git cp --update`
 
 ---
 
@@ -27,7 +28,7 @@ Built with [Spectre.Console](https://spectreconsole.net/) on .NET 10.
 
 > No .NET SDK needed on the target machine — the binaries are self-contained.
 
-**Linux**
+**Linux / macOS**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lepepe/git-cp/main/install.sh | bash
@@ -126,9 +127,25 @@ Step 7  A summary shows how many commits were applied or skipped
 
 | Choice | What happens |
 |--------|-------------|
-| I fixed it manually — stage & continue | Runs `git add -A && git cherry-pick --continue` |
+| I fixed it manually — stage & continue | Stages the conflicted files, then `git cherry-pick --continue`. If other unrelated files are dirty in your working tree, you're prompted to opt in to including them — nothing unrelated is swept in by default. |
 | Skip this commit | Runs `git cherry-pick --skip` |
 | Abort all remaining cherry-picks | Runs `git cherry-pick --abort` and exits |
+
+---
+
+## Updating
+
+```bash
+git cp --update
+# or
+git cp -u
+```
+
+Checks GitHub Releases for a newer version and, if found, asks for confirmation
+before downloading and replacing the current binary in place. A normal `git cp`
+run also checks passively in the background (at most once every 24h) and prints
+a one-line notice if an update is available — it never downloads or applies
+anything on its own.
 
 ---
 
@@ -146,6 +163,8 @@ The release will contain:
 
 - `git-cp-linux-x64` — self-contained Linux binary
 - `git-cp-win-x64.exe` — self-contained Windows binary
+- `git-cp-osx-arm64` / `git-cp-osx-x64` — self-contained macOS binaries
+- `checksums.txt` — SHA-256 checksums for all of the above, used by `git cp --update` to verify downloads
 
 ---
 
@@ -160,10 +179,13 @@ git-cp/
 ├── Makefile               # build + install to ~/.local/bin (Linux)
 ├── Program.cs             # App entry point — UI flow and cherry-pick loop
 ├── GitService.cs          # Thin wrapper around git CLI commands
-├── install.sh             # One-liner installer for Linux
+├── UpdateService.cs       # GitHub release checks, caching, and self-update
+├── install.sh             # One-liner installer for Linux/macOS
 ├── install.ps1            # One-liner installer for Windows
 └── Models/
-    └── CommitInfo.cs      # Record representing a single commit
+    ├── CommitInfo.cs      # Record representing a single commit
+    ├── GitHubRelease.cs   # DTOs for the GitHub releases API
+    └── UpdateCache.cs     # On-disk cache for the last update check
 ```
 
 ---
