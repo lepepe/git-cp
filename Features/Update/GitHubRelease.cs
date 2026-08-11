@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace cp.Models;
+namespace cp.Features.Update;
 
 public record GitHubRelease(
     [property: JsonPropertyName("tag_name")] string TagName,

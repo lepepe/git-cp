@@ -3,9 +3,8 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
-using cp.Models;
 
-namespace cp;
+namespace cp.Features.Update;
 
 public static class UpdateService
 {

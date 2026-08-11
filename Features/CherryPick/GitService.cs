@@ -1,8 +1,7 @@
 using System.Diagnostics;
 using System.Text;
-using cp.Models;
 
-namespace cp;
+namespace cp.Features.CherryPick;
 
 public class GitService
 {

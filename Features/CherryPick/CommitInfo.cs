@@ -1,4 +1,4 @@
-namespace cp.Models;
+namespace cp.Features.CherryPick;
 
 public record CommitInfo(string Hash, string ShortHash, string Author, string Date, string Message)
 {
